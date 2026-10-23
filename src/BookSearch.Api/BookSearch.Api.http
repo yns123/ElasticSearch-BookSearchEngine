@@ -1,0 +1,5 @@
+@BookSearch.Api_HostAddress = http://localhost:5209
+
+### Aşama 1: Elasticsearch bağlantı kontrolü
+GET {{BookSearch.Api_HostAddress}}/api/books/ping
+Accept: application/json
