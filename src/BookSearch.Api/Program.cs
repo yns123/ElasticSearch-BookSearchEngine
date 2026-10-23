@@ -28,6 +28,7 @@ builder.Services.AddSingleton(sp =>
 });
 
 builder.Services.AddScoped<BookSearchService>();
+builder.Services.AddScoped<BookIndexService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

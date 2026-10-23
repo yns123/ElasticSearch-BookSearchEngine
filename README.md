@@ -51,6 +51,12 @@ dotnet run --project src/BookSearch.Api --urls http://localhost:5209
 | `GET /api/books/suggest?q=` | autocomplete |
 | `GET /api/books/facets` | kategori / yazar / fiyat aralığı sayıları |
 | `POST /api/books/seed` | `data/books.json` dosyasını bulk index et |
+| `GET /api/books/ping` | ES bağlantı kontrolü (Aşama 1) |
+| `POST /api/books/index` | `books-v1` index'i + Türkçe analyzer + `books` alias'ı oluştur (Aşama 2) |
+| `GET /api/books/analyze?text=&analyzer=` | metnin token'larını göster (Aşama 2) |
+
+**Aşama 2 sırası:** `POST /api/books/index` → `POST /api/books/seed` → `GET /api/books/analyze?text=Kitapların Güzelliği ILIK`.
+Mapping kaynağı: `src/BookSearch.Api/Resources/books-v1.json`.
 
 ## Proje yapısı
 ```
