@@ -28,7 +28,21 @@ public class BooksController : ControllerBase
     [HttpGet("search")]
     public async Task<IActionResult> Search([FromQuery] BookSearchRequest request, CancellationToken ct)
     {
-        return Ok(await _service.SearchAsync(request, ct));
+        try
+        {
+            return Ok(await _service.SearchAsync(request, ct));
+        }
+        catch (ArgumentException ex) when (ex.ParamName == "cursor")
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    // Aşama 5: autocomplete (edge_ngram).
+    [HttpGet("suggest")]
+    public async Task<IActionResult> Suggest([FromQuery] string q, CancellationToken ct)
+    {
+        return Ok(await _service.SuggestAsync(q, ct));
     }
 
     // Aşama 4: terms / range / avg aggregation ile facet sayıları (doküman döndürmez).

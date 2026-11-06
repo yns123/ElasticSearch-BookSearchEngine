@@ -8,9 +8,12 @@ public class BookSearchRequest
     public decimal? MaxPrice { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
+
+    // Aşama 5: önceki yanıttaki NextCursor. Doluysa from/page yerine search_after kullanılır.
+    public string? Cursor { get; set; }
 }
 
-public record BookHit(string Id, double? Score, Book Book);
+public record BookHit(string Id, double? Score, Book Book, IReadOnlyDictionary<string, string[]>? Highlights);
 
 public record FacetBucket(string Key, long Count);
 
@@ -20,4 +23,5 @@ public record Facets(
     IReadOnlyList<FacetBucket> PriceRanges,
     double? AvgRating);
 
-public record SearchResult(long Total, int Page, int PageSize, IReadOnlyList<BookHit> Items, Facets Facets);
+public record SearchResult(
+    long Total, int Page, int PageSize, IReadOnlyList<BookHit> Items, Facets Facets, string? NextCursor);
