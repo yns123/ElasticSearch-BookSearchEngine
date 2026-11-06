@@ -78,6 +78,53 @@ public class BookSearchService
             .ToList();
     }
 
+    // Aşama 6: popüler kitap, metin skoru eşitken üste çıksın. log1p, 5000 popülerliğin 50'den
+    // 100 kat değil sadece birkaç kat fazla katkı vermesini sağlar; boost_mode=sum skora ekler.
+    private static Query WithPopularityBoost(Query query, bool enabled)
+    {
+        if (!enabled)
+        {
+            return query;
+        }
+
+        return new FunctionScoreQuery
+        {
+            Query = query,
+            BoostMode = FunctionBoostMode.Sum,
+            Functions =
+            [
+                new FunctionScore
+                {
+                    FieldValueFactor = new FieldValueFactorScoreFunction
+                    {
+                        Field = "popularity",
+                        Modifier = FieldValueFactorModifier.Log1p,
+                        Factor = 0.1
+                    }
+                }
+            ]
+        };
+    }
+
+    // Aşama 6: bir dokümanın bu sorguda neden o skoru aldığını BM25 bileşenleriyle gösterir.
+    public async Task<ExplainResult?> ExplainAsync(string id, string q, CancellationToken ct)
+    {
+        var response = await _client.ExplainAsync<Book>(_options.IndexAlias, id, e => e
+            .Query(new MultiMatchQuery
+            {
+                Query = q,
+                Fields = new[] { "title^3", "author^2", "description" },
+                Fuzziness = new Fuzziness("AUTO")
+            }), ct);
+
+        if (!response.IsValidResponse)
+        {
+            return null;
+        }
+
+        return new ExplainResult(response.Matched, response.Explanation);
+    }
+
     // Cursor = [score, _id] değerlerinin base64 JSON'u. Sunucu durumu tutmaz.
     private static string? EncodeCursor(IReadOnlyCollection<FieldValue>? sort)
     {
@@ -152,7 +199,7 @@ public class BookSearchService
             .Indices(_options.IndexAlias)
             .From(from)
             .Size(size)
-            .Query(new BoolQuery { Must = [textQuery], Filter = filters })
+            .Query(WithPopularityBoost(new BoolQuery { Must = [textQuery], Filter = filters }, request.PopularityBoost))
             .PostFilter(categoryFilter)
             // search_after için stabil sıralama: skor eşitse _id belirler.
             .Sort(
@@ -200,5 +247,7 @@ public class BookSearchService
         return (response, facets);
     }
 }
+
+public record ExplainResult(bool Matched, Elastic.Clients.Elasticsearch.Core.Explain.ExplanationDetail? Explanation);
 
 public record PingResult(bool Connected, string? ClusterName, string? Version, string? Error);

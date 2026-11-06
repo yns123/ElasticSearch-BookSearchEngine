@@ -11,6 +11,9 @@ public class BookSearchRequest
 
     // Aşama 5: önceki yanıttaki NextCursor. Doluysa from/page yerine search_after kullanılır.
     public string? Cursor { get; set; }
+
+    // Aşama 6: true ise function_score ile popularity alanı skora eklenir.
+    public bool PopularityBoost { get; set; }
 }
 
 public record BookHit(string Id, double? Score, Book Book, IReadOnlyDictionary<string, string[]>? Highlights);

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Text.Json.Serialization;
 using BookSearch.Api.Models;
 using BookSearch.Api.Options;
@@ -41,6 +42,67 @@ public class BookIndexService
         return response.ApiCallDetails.HasSuccessfulStatusCode
             ? new OperationResult(true, $"'{IndexName}' oluşturuldu, alias: '{_options.IndexAlias}'.")
             : new OperationResult(false, response.Body);
+    }
+
+    // Aşama 6: mapping değişikliği = yeni index + _reindex + alias geçişi. Eski index silinmez
+    // (geri dönüş için kalır); alias remove+add tek istekte olduğu için geçiş atomiktir.
+    public async Task<OperationResult> MigrateAsync(string target, CancellationToken ct)
+    {
+        if (!Regex.IsMatch(target, @"^books-v\d+$"))
+        {
+            return new OperationResult(false, "Hedef index 'books-vN' biçiminde olmalı.");
+        }
+
+        var mappingPath = Path.Combine(AppContext.BaseDirectory, "Resources", $"{target}.json");
+        if (!File.Exists(mappingPath))
+        {
+            return new OperationResult(false, $"Mapping dosyası yok: Resources/{target}.json");
+        }
+
+        // GET _alias/books -> { "books-v1": { "aliases": { "books": {} } } }; anahtar = alias'ın bağlı olduğu index.
+        var aliasResponse = await _client.Transport.RequestAsync<StringResponse>(
+            Elastic.Transport.HttpMethod.GET, $"_alias/{_options.IndexAlias}", cancellationToken: ct);
+        var current = aliasResponse.ApiCallDetails.HasSuccessfulStatusCode
+            ? JsonDocument.Parse(aliasResponse.Body).RootElement.EnumerateObject().FirstOrDefault().Name
+            : null;
+        if (string.IsNullOrEmpty(current))
+        {
+            current = null;
+        }
+        if (current is null)
+        {
+            return new OperationResult(false, $"'{_options.IndexAlias}' alias'ı bir index'e bağlı değil. Önce POST /api/books/index çalıştır.");
+        }
+
+        if (current == target || (await _client.Indices.ExistsAsync(target, ct)).Exists)
+        {
+            return new OperationResult(false, $"'{target}' zaten var.");
+        }
+
+        var body = await File.ReadAllTextAsync(mappingPath, ct);
+        var create = await _client.Transport.RequestAsync<StringResponse>(
+            Elastic.Transport.HttpMethod.PUT, target, PostData.String(body), cancellationToken: ct);
+        if (!create.ApiCallDetails.HasSuccessfulStatusCode)
+        {
+            return new OperationResult(false, create.Body);
+        }
+
+        var reindex = await _client.ReindexAsync(r => r
+            .Source(s => s.Indices(current))
+            .Dest(d => d.Index(target))
+            .WaitForCompletion(true), ct);
+        if (!reindex.IsValidResponse || reindex.Failures?.Count > 0)
+        {
+            return new OperationResult(false, $"Reindex başarısız, alias taşınmadı: {reindex.DebugInformation}");
+        }
+
+        var swap = await _client.Indices.UpdateAliasesAsync(u => u.Actions(
+            a => a.Remove(r => r.Index(current).Alias(_options.IndexAlias)),
+            a => a.Add(x => x.Index(target).Alias(_options.IndexAlias))), ct);
+
+        return swap.IsValidResponse
+            ? new OperationResult(true, $"{reindex.Total} doküman '{current}' -> '{target}' taşındı; '{_options.IndexAlias}' alias'ı artık '{target}' üzerinde. Eski index silinmedi.")
+            : new OperationResult(false, $"Alias geçişi başarısız: {swap.DebugInformation}");
     }
 
     public async Task<OperationResult> SeedAsync(CancellationToken ct)

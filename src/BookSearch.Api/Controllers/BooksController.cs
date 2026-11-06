@@ -38,6 +38,22 @@ public class BooksController : ControllerBase
         }
     }
 
+    // Aşama 6: _explain ile skorun bileşenleri.
+    [HttpGet("{id}/explain")]
+    public async Task<IActionResult> Explain(string id, [FromQuery] string q, CancellationToken ct)
+    {
+        var result = await _service.ExplainAsync(id, q, ct);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    // Aşama 6: yeni mapping ile reindex + alias geçişi (örn. ?target=books-v2).
+    [HttpPost("migrate")]
+    public async Task<IActionResult> Migrate([FromQuery] string target, CancellationToken ct)
+    {
+        var result = await _indexService.MigrateAsync(target, ct);
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
     // Aşama 5: autocomplete (edge_ngram).
     [HttpGet("suggest")]
     public async Task<IActionResult> Suggest([FromQuery] string q, CancellationToken ct)

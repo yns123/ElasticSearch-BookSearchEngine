@@ -1,4 +1,4 @@
-# Mini Kitap Arama Motoru (Elasticsearch Öğrenme Projesi)
+﻿# Mini Kitap Arama Motoru (Elasticsearch Öğrenme Projesi)
 
 Türkçe bir kitap kataloğu üzerinde Elasticsearch'ün temel özelliklerini uygulayarak öğrenmek için küçük bir proje.
 
@@ -44,21 +44,24 @@ dotnet run --project src/BookSearch.Api --urls http://localhost:5209
 | `rating` | float | sıralama / boost |
 | `popularity` | integer | `function_score` |
 
-## API (aşama 3-5'te yazılır)
-| Endpoint | Amaç |
-|---|---|
-| `GET /api/books/search?q=&category=&minPrice=&maxPrice=&page=` | arama + filtre + highlight |
-| `GET /api/books/suggest?q=` | autocomplete |
-| `GET /api/books/facets` | kategori / yazar / fiyat aralığı sayıları |
-| `POST /api/books/seed` | `data/books.json` dosyasını bulk index et |
-| `GET /api/books/ping` | ES bağlantı kontrolü (Aşama 1) |
-| `GET /api/books/search?q=&category=&minPrice=&maxPrice=&page=&pageSize=` | `multi_match` (title^3, author^2, description) + `bool.filter` (Aşama 3) |
-| `GET /api/books/facets?q=&category=&minPrice=&maxPrice=` | kategori/yazar/fiyat aralığı sayıları + ortalama rating, doküman döndürmez (Aşama 4) |
-| `POST /api/books/index` | `books-v1` index'i + Türkçe analyzer + `books` alias'ı oluştur (Aşama 2) |
-| `GET /api/books/analyze?text=&analyzer=` | metnin token'larını göster (Aşama 2) |
+## API
+| Endpoint | Amaç | Aşama |
+|---|---|---|
+| `GET /api/books/ping` | ES bağlantı kontrolü | 1 |
+| `POST /api/books/index` | `books-v1` index'i + Türkçe analyzer + `books` alias'ı oluştur | 2 |
+| `POST /api/books/seed` | `data/books.json` dosyasını bulk index et | 2 |
+| `GET /api/books/analyze?text=&analyzer=` | metnin token'larını göster | 2 |
+| `GET /api/books/search?q=&category=&minPrice=&maxPrice=&page=&pageSize=` | `multi_match` (title^3, author^2, description) + `bool.filter`; yanıtta facet'ler | 3-4 |
+| `GET /api/books/facets?q=&category=&minPrice=&maxPrice=` | kategori/yazar/fiyat aralığı sayıları + ortalama rating, doküman döndürmez | 4 |
+| `GET /api/books/suggest?q=` | autocomplete (`title.autocomplete`, edge_ngram) | 5 |
+| `GET /api/books/search?...&cursor=` | fuzzy (`AUTO`), `<em>` highlight; `nextCursor` değeri `cursor` olarak verilince `search_after` ile devam eder | 5 |
+| `GET /api/books/search?...&popularityBoost=true` | `function_score` ile popularity skora eklenir | 6 |
+| `GET /api/books/{id}/explain?q=` | `_explain`: skorun BM25 bileşenleri | 6 |
+| `POST /api/books/migrate?target=books-v2` | yeni mapping ile index oluştur → `_reindex` → alias'ı atomik taşı | 6 |
 
 **Aşama 2 sırası:** `POST /api/books/index` → `POST /api/books/seed` → `GET /api/books/analyze?text=Kitapların Güzelliği ILIK`.
-Mapping kaynağı: `src/BookSearch.Api/Resources/books-v1.json`.
+**Aşama 6 sırası:** `POST /api/books/migrate?target=books-v2` (v2, v1'e `isbn` keyword alanı ekler). Eski index silinmez; geri dönmek için alias'ı tekrar `books-v1`'e taşıyabilirsin.
+Mapping kaynakları: `src/BookSearch.Api/Resources/books-v1.json`, `books-v2.json`.
 
 ## Proje yapısı
 ```
