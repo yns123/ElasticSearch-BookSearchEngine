@@ -53,6 +53,7 @@ dotnet run --project src/BookSearch.Api --urls http://localhost:5209
 | `POST /api/books/seed` | `data/books.json` dosyasını bulk index et |
 | `GET /api/books/ping` | ES bağlantı kontrolü (Aşama 1) |
 | `GET /api/books/search?q=&category=&minPrice=&maxPrice=&page=&pageSize=` | `multi_match` (title^3, author^2, description) + `bool.filter` (Aşama 3) |
+| `GET /api/books/facets?q=&category=&minPrice=&maxPrice=` | kategori/yazar/fiyat aralığı sayıları + ortalama rating, doküman döndürmez (Aşama 4) |
 | `POST /api/books/index` | `books-v1` index'i + Türkçe analyzer + `books` alias'ı oluştur (Aşama 2) |
 | `GET /api/books/analyze?text=&analyzer=` | metnin token'larını göster (Aşama 2) |
 

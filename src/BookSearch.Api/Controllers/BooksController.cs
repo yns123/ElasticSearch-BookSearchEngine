@@ -31,6 +31,13 @@ public class BooksController : ControllerBase
         return Ok(await _service.SearchAsync(request, ct));
     }
 
+    // Aşama 4: terms / range / avg aggregation ile facet sayıları (doküman döndürmez).
+    [HttpGet("facets")]
+    public async Task<IActionResult> Facets([FromQuery] BookSearchRequest request, CancellationToken ct)
+    {
+        return Ok(await _service.FacetsAsync(request, ct));
+    }
+
     // Aşama 2: books-v1 index'ini mapping + Türkçe analyzer + alias ile oluşturur.
     [HttpPost("index")]
     public async Task<IActionResult> CreateIndex(CancellationToken ct)

@@ -12,4 +12,12 @@ public class BookSearchRequest
 
 public record BookHit(string Id, double? Score, Book Book);
 
-public record SearchResult(long Total, int Page, int PageSize, IReadOnlyList<BookHit> Items);
+public record FacetBucket(string Key, long Count);
+
+public record Facets(
+    IReadOnlyList<FacetBucket> Categories,
+    IReadOnlyList<FacetBucket> Authors,
+    IReadOnlyList<FacetBucket> PriceRanges,
+    double? AvgRating);
+
+public record SearchResult(long Total, int Page, int PageSize, IReadOnlyList<BookHit> Items, Facets Facets);
