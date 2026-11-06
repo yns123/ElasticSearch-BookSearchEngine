@@ -1,3 +1,4 @@
+using BookSearch.Api.Models;
 using BookSearch.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,6 +22,13 @@ public class BooksController : ControllerBase
     {
         var result = await _service.PingAsync(ct);
         return result.Connected ? Ok(result) : StatusCode(StatusCodes.Status503ServiceUnavailable, result);
+    }
+
+    // Aşama 3: multi_match + bool filter ile arama.
+    [HttpGet("search")]
+    public async Task<IActionResult> Search([FromQuery] BookSearchRequest request, CancellationToken ct)
+    {
+        return Ok(await _service.SearchAsync(request, ct));
     }
 
     // Aşama 2: books-v1 index'ini mapping + Türkçe analyzer + alias ile oluşturur.
